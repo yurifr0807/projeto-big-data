@@ -1,0 +1,94 @@
+# ==========================================
+# Ambientes Virtuais e Interpretadores
+# ==========================================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Cache e Compilados do Python
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# ==========================================
+# Variáveis de Ambiente e Segredos
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+
+# ==========================================
+# Armazenamento de Dados (Bases Grandes)
+# ==========================================
+# Ignora arquivos de dados nas pastas de dados, mantendo apenas o .gitkeep
+dados/bruto/*
+!dados/bruto/.gitkeep
+
+dados/tratado/*
+!dados/tratado/.gitkeep
+
+# Extensões comuns de bases e arquivos compactados de dados
+# (Observação: arquivos .json NÃO são ignorados globalmente para permitir metadados/configs)
+*.csv
+*.parquet
+*.feather
+*.orc
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.sqlite3
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# ==========================================
+# Terraform
+# ==========================================
+# Diretório de inicialização do Terraform
+.terraform/
+
+# Arquivos de estado (Terraform State podem conter segredos e dados da infraestrutura)
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Arquivos de variáveis com segredos
+*.tfvars
+*.tfvars.json
+
+# Arquivos de substituição local
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# NOTA: .terraform.lock.hcl NÃO está ignorado, devendo ser versionado conforme boas práticas.
+
+# ==========================================
+# IDEs e Sistema Operacional
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
