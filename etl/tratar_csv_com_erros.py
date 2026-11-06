@@ -28,6 +28,7 @@ def main():
     if not caminho_entrada.exists():
         raise FileNotFoundError(f"Arquivo não encontrado: {caminho_entrada}")
 
+
     # Leitura do CSV bruto
     df_bruto = pd.read_csv(caminho_entrada)
     linhas_iniciais = len(df_bruto)

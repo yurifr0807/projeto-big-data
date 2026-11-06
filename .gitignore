@@ -59,14 +59,21 @@ dados/tratado/*
 *.7z
 
 # ==========================================
+# Logs do pipeline e relatórios gerados
+# ==========================================
+logs/
+
+# ==========================================
 # Terraform
 # ==========================================
 # Diretório de inicialização do Terraform
 .terraform/
 
-# Arquivos de estado (Terraform State podem conter segredos e dados da infraestrutura)
+# Arquivos de estado e planos (Terraform State e Plan podem conter segredos e dados da infraestrutura)
 *.tfstate
 *.tfstate.*
+*.tfplan
+*.plan
 crash.log
 crash.*.log
 
