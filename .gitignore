@@ -81,6 +81,10 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 
+# Arquivos temporários de credenciais (nunca versionar)
+credenciais*.json
+credenciais*.txt
+
 # Arquivos de substituição local
 override.tf
 override.tf.json

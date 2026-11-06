@@ -24,7 +24,9 @@ def test_leitor_lattes_celulas_mescladas_resolvidas():
 
 @pytest.mark.skipif(not CAMINHO_BRUTO_LATTES.exists(), reason="Arquivo oficial Lattes não disponível")
 def test_etl_lattes_pipeline_execucao():
-    df_tratado, rel = tratamento_lattes.executar_etl_lattes(salvar_csv=False)
+    df_tratado, rel = tratamento_lattes.executar_etl_lattes(
+        salvar_csv=False, registrar_evidencias=False
+    )
     assert len(df_tratado) == 25820
     assert "sexo_original" in df_tratado.columns
     assert "cor_ou_raca_original" in df_tratado.columns

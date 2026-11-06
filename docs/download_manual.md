@@ -25,10 +25,26 @@ da CAPES falha na verificação TLS neste ambiente. Use o procedimento abaixo e 
 
 > Os arquivos em `dados/bruto/` são imutáveis e ignorados pelo Git. Não os edite; o reprocessamento parte sempre deles.
 
-## CNPq — Painel Lattes (opcional, contexto populacional)
+## CNPq — Painel Lattes (fonte efetiva da Fase 2)
 
-Em <http://bi.cnpq.br/painel/formacao-atuacao-lattes/> escolha a dimensão/filtros e use a opção de download
-(Excel ou CSV) descrita na página oficial. Registre com `--subpasta cnpq/painel_lattes`.
+A base entregue na Fase 2 é o Painel Lattes, recorte **2023**:
+
+1. Abra <http://bi.cnpq.br/painel/formacao-atuacao-lattes/>.
+2. Selecione o ano de referência **2023**.
+3. Mantenha o filtro **Bolsista — PQ 1A = Não**.
+4. Baixe a planilha com o nome original `Download - Tabela.xlsx`.
+5. Confira o SHA-256:
+   `939c5f4322e17a86970887f63def21de8b27033187f100ddeaefe9af4fe384e9`.
+6. Registre com `--subpasta cnpq/painel_lattes`:
+
+```powershell
+python -m etl.ingestao importar "C:\Users\<voce>\Downloads\Download - Tabela.xlsx" `
+  --subpasta cnpq/painel_lattes `
+  --origem "Exportação oficial do Painel Lattes do CNPq, exportado em 2026-11-05 com ano=2023 e PQ 1A=Não"
+```
+
+Resultado esperado: 25.820 linhas, 40 colunas e `SUM(quantidade) = 26.009`.
+O roteiro completo está em [`docs/reproducao_fase2.md`](reproducao_fase2.md).
 
 ## CAPES
 

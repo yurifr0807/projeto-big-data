@@ -10,13 +10,14 @@ terraform {
   }
 }
 
-# O token NUNCA é escrito em arquivo: exporte AIVEN_API_TOKEN no ambiente
+# O token NUNCA é escrito em arquivo: exporte AIVEN_TOKEN no ambiente
 # (o provider lê essa variável automaticamente).
 provider "aiven" {}
 
 # Serviço PostgreSQL gerenciado (plano gratuito, ~1 GB de armazenamento).
-# ATENÇÃO: este código foi apenas preparado/validado estaticamente;
-# nenhum `terraform apply` foi executado.
+# O serviço existente foi aplicado/importado na Aiven. O estado local
+# (terraform.tfstate) é ignorado pelo Git; em um clone limpo, use o bloco
+# declarativo de imports.tf para reconciliar o recurso antes de qualquer apply.
 resource "aiven_pg" "observatorio" {
   project      = var.aiven_project
   cloud_name   = var.cloud_name

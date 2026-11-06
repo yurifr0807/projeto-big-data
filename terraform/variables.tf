@@ -1,10 +1,10 @@
 variable "aiven_project" {
-  description = "Nome do projeto na Aiven onde o serviço será criado."
+  description = "Nome do projeto existente na Aiven que contém o serviço."
   type        = string
 }
 
 variable "nome_servico" {
-  description = "Nome do serviço PostgreSQL."
+  description = "Nome do serviço PostgreSQL existente."
   type        = string
   default     = "pg-4f83b4b"
 }

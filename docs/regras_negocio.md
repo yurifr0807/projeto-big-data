@@ -1,25 +1,61 @@
-# Regras de negócio e indicadores — **definições planejadas (não calculadas)**
+# Regras de negócio e indicadores — Lattes 2023
 
-> Nenhum indicador foi calculado: ainda não há dados oficiais carregados. Cada KPI só será habilitado se os campos
-> exigidos existirem na planilha real (`etl.validacao.checar_campos_indicador`).
-> Unidade de contagem: **proposta/processo** (painel de chamadas). Propostas, pessoas (CPF) e valores financeiros
-> **não são misturados**.
+## 1. Escopo
 
-Regras gerais: denominador = apenas registros com o atributo **conhecido**; "Não informado"/"Não desejo declarar" reportados à parte
-(cobertura); células com contagem < 5 suprimidas; diferenças são descritivas, **não causais**.
+A base da Fase 2 é o **Painel Lattes 2023**, uma tabela agregada de mestres e
+doutores. Ela permite análises descritivas de **perfil** por sexo, cor/raça,
+formação, atuação, área, região e bolsas.
 
-| # | KPI | Fórmula | Campos | Denominador | Ausentes | Fonte | Limitações |
-|---|---|---|---|---|---|---|---|
-| 1 | Participação feminina | `propostas contempladas de mulheres ÷ contempladas com sexo conhecido × 100` (e idem para submetidas) | ano, sexo, parecer, [UF, área, modalidade, nível] | contempladas (ou submetidas) com sexo ∈ {F, M} | "Não informado" excluído; % de cobertura exibida | CNPq — Painel PQ | Não reflete a composição do corpo de pesquisadores; níveis 2013–23 × 2024+ não comparáveis |
-| 2 | Participação por raça/cor | `contempladas da categoria ÷ contempladas com raça/cor conhecida × 100` | ano, cor_raca, parecer | contempladas com cor/raça ∈ 5 categorias | "Não informado" e "Não desejo declarar" excluídos e exibidos; cobertura varia no tempo (campo recente no Lattes) | CNPq — Painel PQ | Subdeclaração histórica; categorias pequenas exigem supressão |
-| 3 | Taxa de contemplação interseccional | `contempladas ÷ submetidas × 100` por (sexo × cor/raça) | ano, sexo, cor_raca, parecer | submetidas do grupo (sexo e raça conhecidos) | idem | CNPq — Painel PQ | "Contemplada" ≠ "aprovada": não contemplados incluem aprovados sem cota; grupos pequenos instáveis (exibir n) |
-| 4 | Diferença de acesso (p.p.) | `taxa_grupo_A − taxa_grupo_B` (KPI 3 ou participação) | os do KPI 3 | os do KPI 3 | idem | CNPq — Painel PQ | Sem controle de área/nível/instituição; não prova discriminação; reportar n e, se possível, intervalo de confiança |
-| 5* | Distribuição regional | contempladas por região/UF ÷ total | UF/região, parecer | contempladas com UF conhecida | UF ausente reportada | CNPq — Painel PQ | UF = instituição de execução, não residência |
-| 6* | Participação por área | contempladas por grande área ÷ total | grande área, parecer | contempladas com área | — | CNPq — Painel PQ | Árvore de áreas varia por chamada |
-| 7* | Evolução temporal por grupo | KPI 1–3 por ano | ano | por ano | — | CNPq — Painel PQ | Ano = lançamento da chamada (implementação no ano seguinte) |
-| 8* | Valores de financiamento | distribuição de valores concedidos | campo de valor (se existir) | contempladas com valor | valor ausente ≠ 0 | a confirmar | Só se a planilha trouxer valores por proposta |
+Ela **não** contém propostas submetidas, aprovadas, rejeitadas ou contempladas.
+Portanto, não permite calcular taxa de aprovação, taxa de contemplação ou
+diferença de acesso a fomento. Esses indicadores dependem do Painel PQ ou de
+outra fonte oficial e ficam para fase futura.
 
-\* adicionais, condicionados à presença dos campos.
+## 2. Regra central de contagem
 
-## Integração CNPq × CAPES
-Somente quando houver compatibilidade de indicadores, granularidade, períodos e definições. Hoje **não aplicável** (CAPES não verificada).
+- **Unidade de análise:** pessoa, representada pela soma de `quantidade`.
+- **Nunca usar `COUNT(*)`** para contar pessoas: cada linha é uma célula
+  agregada.
+- **Denominador:** apenas registros com o atributo conhecido.
+- **Categorias não conhecidas:** `Não informado`, `Não desejo declarar` e
+  `Não mapeado` ficam fora do denominador e são reportadas à parte (cobertura).
+- **Células pequenas:** suprimir ou agrupar contagens `< 5` em saídas públicas.
+- **Diferenças:** são descritivas, não causais.
+
+## 3. Indicadores possíveis com o Lattes
+
+| # | Indicador | Fórmula | Campos | Limitações |
+|---|---|---|---|---|
+| 1 | Participação feminina | `SUM(quantidade) de Feminino ÷ SUM(quantidade) com sexo conhecido × 100` | `sexo`, `quantidade` | Exclui “Não informado”; reportar cobertura |
+| 2 | Participação por cor/raça | `SUM(quantidade) da categoria ÷ SUM(quantidade) com raça conhecida × 100` | `cor_ou_raca`, `quantidade` | Exclui “Não desejo declarar”/“Não informado”; subdeclaração histórica |
+| 3 | Interseccional sexo × raça | `SUM(quantidade)` por par, com percentual sobre o total conhecido | `sexo`, `cor_ou_raca`, `quantidade` | Células pequenas instáveis; suprimir `< 5` |
+| 4 | Distribuição regional | `SUM(quantidade)` por região/UF ÷ total | `regiao_atuacao`, `uf_atuacao` | Reflete atuação, não residência |
+| 5 | Distribuição por área | `SUM(quantidade)` por grande área/área ÷ total | `grande_area_atuacao`, `area_atuacao` | Categorias “Não informado”/“Outra” |
+| 6 | Presença de bolsa PQ/DT | `SUM(quantidade)` com `Sim` ÷ total da categoria | `bolsista_pq`, `bolsista_dt`, `quantidade` | Indica presença/histórico, não taxa de concessão; PQ 1A ausente |
+| 7 | Perfil por nível de formação | `SUM(quantidade)` por `nivel_formacao` | `nivel_formacao` | Depende da consistência da categoria |
+| 8 | Formação por instituição/UF | `SUM(quantidade)` por instituição/UF de formação | `instituicao_formacao`, `uf_formacao` | Grafias e vínculos podem variar |
+
+> As consultas de [`etl/consultas_validacao_lattes.sql`](../etl/consultas_validacao_lattes.sql)
+> implementam as versões SQL ponderadas dos indicadores 1–6.
+
+## 4. Indicadores de fomento — não disponíveis nesta base
+
+| Indicador | Fórmula | Fonte necessária | Status |
+|---|---|---|---|
+| Taxa de aprovação | aprovadas ÷ submetidas × 100 | Painel PQ / chamadas | Não calculável com Lattes |
+| Taxa de contemplação | contempladas ÷ submetidas × 100 | Painel PQ / chamadas | Não calculável com Lattes |
+| Diferença de acesso | taxa grupo A − taxa grupo B | Painel PQ / chamadas | Não calculável com Lattes |
+| Valores concedidos | soma/distribuição de valores | Painel PQ / outra fonte | Não disponível |
+
+Esses indicadores não devem ser “aproximados” com a base Lattes. Fazer isso
+criaria denominadores fictícios e conclusões inválidas.
+
+## 5. Regras de apresentação
+
+1. Exibir sempre `n` e cobertura ao lado de percentuais.
+2. Não apresentar categorias “Não informado”/“Não desejo declarar” como se
+   fossem grupos de interesse.
+3. Suprimir células `< 5` ou agrupá-las antes de publicar.
+4. Não usar linguagem causal (“causa”, “prova discriminação”) sem desenho
+   estatístico adequado.
+5. Separar claramente **perfil** (Lattes) de **fomento** (PQ).

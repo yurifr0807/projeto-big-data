@@ -58,8 +58,13 @@ def executar_etl_lattes(
     caminho_entrada: Path = CAMINHO_BRUTO_LATTES,
     caminho_saida: Path = CAMINHO_TRATADO_LATTES,
     salvar_csv: bool = True,
+    registrar_evidencias: bool = True,
 ) -> tuple[pd.DataFrame, dict]:
-    """Executa o pipeline completo de ETL para a tabela oficial do Painel Lattes."""
+    """Executa o pipeline completo de ETL para a tabela oficial do Painel Lattes.
+
+    ``registrar_evidencias=False`` evita que testes ou execuções exploratórias
+    sobrescrevam o relatório de qualidade e a linhagem versionados.
+    """
     log.info("Iniciando ETL da base Painel Lattes: %s", caminho_entrada)
     if not caminho_entrada.exists():
         raise FileNotFoundError(f"Arquivo oficial não encontrado: {caminho_entrada}")
@@ -101,7 +106,8 @@ def executar_etl_lattes(
     )
     rel_qualidade["duplicatas_removidas"] = duplicatas_removidas
     rel_qualidade["total_doutores_mestres_ponderado"] = int(df["quantidade"].sum())
-    validacao.escrever_relatorio(rel_qualidade, RELATORIO_QUALIDADE_PATH)
+    if registrar_evidencias:
+        validacao.escrever_relatorio(rel_qualidade, RELATORIO_QUALIDADE_PATH)
 
     # 8. Registro de Linhagem formal
     decisoes = [
@@ -141,14 +147,15 @@ def executar_etl_lattes(
         df.to_csv(caminho_saida, index=False, encoding="utf-8")
         log.info("Base tratada salva em: %s", caminho_saida)
 
-    linhagem.registrar_linhagem(
-        nome="linhagem_lattes_2023",
-        entradas=[caminho_entrada],
-        saida=caminho_saida if salvar_csv else None,
-        relatorio_tratamento=rel_qualidade,
-        decisoes=decisoes,
-        dir_bruto=RAIZ / "dados" / "bruto",
-    )
+    if registrar_evidencias:
+        linhagem.registrar_linhagem(
+            nome="linhagem_lattes_2023",
+            entradas=[caminho_entrada],
+            saida=caminho_saida if salvar_csv else None,
+            relatorio_tratamento=rel_qualidade,
+            decisoes=decisoes,
+            dir_bruto=RAIZ / "dados" / "bruto",
+        )
 
     return df, rel_qualidade
 

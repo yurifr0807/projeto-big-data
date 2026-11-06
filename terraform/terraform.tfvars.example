@@ -1,6 +1,9 @@
 # Copie para terraform.tfvars (ignorado pelo Git). NÃO coloque tokens aqui:
-# o token vai na variável de ambiente AIVEN_API_TOKEN.
-#   PowerShell: $env:AIVEN_API_TOKEN = "<token>"
+# o token do provider vai na variável de ambiente AIVEN_TOKEN.
+#   PowerShell: $env:AIVEN_TOKEN = "<token>"
+#
+# Os valores abaixo refletem o ambiente já provisionado na Aiven (Fase 2).
+# Para outro ambiente, ajuste projeto, serviço, plano, região e versão.
 
 aiven_project = "projeto-bigdata"
 nome_servico  = "pg-4f83b4b"
@@ -8,3 +11,7 @@ versao_pg     = "18"
 nome_banco    = "observatorio"
 plano         = "free-1-1gb"
 cloud_name    = "do-sfo"
+
+# Opcionais (defaults no variables.tf):
+# protecao_contra_exclusao = true
+# ip_filter = ["203.0.113.10/32"]

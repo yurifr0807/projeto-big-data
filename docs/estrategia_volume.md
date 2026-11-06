@@ -1,37 +1,55 @@
 # Estratégia de volume (limite de 1 GB — PostgreSQL Aiven Free Tier)
 
-> **Status: decisões registradas ANTES de aplicação aos dados reais.** O tamanho real ainda não foi medido porque
-> os arquivos oficiais ainda não foram baixados (ver `docs/fontes_dados.md`). Os limiares abaixo serão confrontados
-> com o volume efetivo e este documento será atualizado com os números medidos.
+## 1. Status atual
 
-## Princípios
+- Arquivo bruto: `Download - Tabela.xlsx`, 3.886.479 bytes.
+- Base tratada: 25.820 linhas, 40 colunas de dados (+ 2 colunas originais).
+- Pessoas ponderadas: 26.009 (`SUM(quantidade)`).
+- Tabela PostgreSQL: `lattes_analytics.perfil_pesquisadores_lattes_2023`.
+- **Tamanho real do banco (`pg_database_size`): não medido.**
+- Estimativa: poucos MB, muito abaixo da cota de 1 GB. A estimativa não
+  substitui uma medição.
 
-1. **Orçamento:** dados + índices ≤ **~600 MB** (60 % de 1 GB), reservando o restante para sistema, WAL, estatísticas e crescimento.
-2. **Ordem de aplicação (do menos ao mais intrusivo):** seleção de colunas → tipos compactos → deduplicação exata →
-   recorte temporal → agregação → (último recurso) amostragem.
-3. **Nada é descartado do bruto:** o arquivo original permanece em `dados/bruto/` (fora do banco, ignorado pelo Git).
+## 2. Princípios
 
-## Decisões
+1. **Orçamento:** dados + índices ≤ ~600 MB (60% de 1 GB), reservando o restante
+   para sistema, WAL, estatísticas e crescimento.
+2. **Ordem de aplicação (do menos ao mais intrusivo):** seleção de colunas →
+   tipos compactos → deduplicação exata → recorte temporal → agregação →
+   (último recurso) amostragem.
+3. **Nada é descartado do bruto:** o arquivo original permanece em
+   `dados/bruto/` (fora do Git).
 
-| Técnica | Decisão | Justificativa e efeito na análise |
+## 3. Decisões para a base Lattes
+
+| Técnica | Decisão | Justificativa |
 |---|---|---|
-| **Seleção de colunas** | **Aplicar sempre.** Carregar somente colunas necessárias aos KPIs (ano, modalidade, nível, grande área/área, UF/região, instituição, sexo, cor/raça, parecer, valor se existir). Descartar identificadores pessoais (CPF, nome, e-mail) **antes** de qualquer persistência. | Minimização (LGPD) e redução de volume. Sem efeito sobre KPIs. |
-| **Chunking** | **Aplicar sempre** (`etl.ingestao.ler_csv_em_chunks`, 100 mil linhas/lote) em CSV; XLSX é lido por aba (limite do formato). | Mantém memória constante. Sem efeito analítico. |
-| **Tipos compactos** | `SMALLINT` (ano), `NUMERIC(14,2)` (valores), `TEXT` controlado por dimensões (chaves inteiras nas dimensões do modelo estrela). | Reduz tamanho de fato e índices. Sem efeito analítico. |
-| **Deduplicação** | Somente duplicatas **100 % idênticas**. | Evita remover registros legítimos (propostas distintas de um mesmo pesquisador). |
-| **Recorte temporal** | **Não aplicar a priori.** O escopo natural do painel PQ (2013–2024) é pequeno. Só recortar se o volume medido exceder o orçamento. | Preserva a série histórica para análises de evolução. |
-| **Agregação prévia** | Manter **granularidade de proposta** (uma linha por processo/chamada) enquanto couber. Caso exceda, agregar por `ano × modalidade × nível × área × UF × instituição × sexo × raça × parecer` **com contagem** — preservando exatamente os KPIs e permitindo supressão de células pequenas. | Agregação nessa granularidade **não altera** taxas nem participações; só impede detalhes por proposta. |
-| **Amostragem estatística** | **Não utilizar** para KPIs de taxa de aprovação. | Amostrar distorceria grupos pequenos (ex.: indígenas, amarelas) e inflaria a variância; seria incompatível com auditoria de viés. Admitida apenas para tabelas auxiliares volumosas (ex.: logs de exploração), nunca para fatos dos KPIs. |
-| **Volumes de outras bases** (ex.: Demanda e Atendimento, Lattes) | Carregar **apenas agregados** (tabelas pré-agregadas por dimensão), nunca microdados. | Mantém a base dentro do orçamento. |
+| **Seleção de colunas** | Manter as 40 colunas da fonte; descartar `sexo_original`/`cor_ou_raca_original` antes da carga | Preserva a granularidade analítica; remove duplicação de auditoria |
+| **Chunking** | Inserções em lotes de até 500 registros | Mantém memória constante e respeita o limite de parâmetros do PostgreSQL |
+| **Tipos compactos** | `SMALLINT` para ano; `VARCHAR` para dimensões; `INTEGER` para `quantidade` | Reduz volume e mantém legibilidade |
+| **Deduplicação** | Somente duplicatas 100% idênticas | Evita remover células legítimas |
+| **Recorte temporal** | Não aplicar além de 2023 (o arquivo já é 2023) | O recorte é a própria base |
+| **Agregação** | Manter a granularidade da planilha (célula agregada) | Preserva os KPIs e a fidelidade à fonte |
+| **Amostragem** | **Não utilizar** nos fatos dos KPIs | Distorceria grupos pequenos e inflaria a variância |
+| **Modelo** | Tabela analítica desnormalizada | Evita JOINs e cabe no Free Tier; modelo estrela fica como evolução futura |
 
-## Procedimento de verificação de tamanho (a ser executado após a carga)
+## 4. Procedimento de verificação de tamanho
+
+Quando houver autorização para consultar o banco, executar:
 
 ```sql
 SELECT pg_size_pretty(pg_database_size(current_database()));
+
 SELECT relname, pg_size_pretty(pg_total_relation_size(oid))
-FROM pg_class WHERE relkind = 'r' AND relnamespace = 'public'::regnamespace
+FROM pg_class
+WHERE relkind = 'r'
+  AND relnamespace = 'lattes_analytics'::regnamespace
 ORDER BY pg_total_relation_size(oid) DESC;
 ```
 
-O resultado deve ser registrado neste documento. Se > 600 MB, aplicar a próxima técnica da ordem acima e
-**documentar o efeito antes de reexecutar**.
+Registrar o resultado neste documento. Se o tamanho medido ultrapassar 600 MB,
+aplicar a próxima técnica da ordem acima e documentar o efeito antes de
+reexecutar.
+
+> **Status:** não medido. Não há valor de `pg_database_size` registrado nesta
+> entrega.

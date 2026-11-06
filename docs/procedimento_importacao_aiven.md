@@ -1,101 +1,128 @@
-# Procedimento de Importação e Alinhamento do PostgreSQL Aiven com Terraform
+# Importação e Alinhamento do PostgreSQL Aiven com Terraform
 
-Este guia orienta o alinhamento seguro entre a instância PostgreSQL criada na interface da Aiven e a infraestrutura gerenciada via Terraform no repositório.
+Este guia registra como o serviço PostgreSQL existente na Aiven foi alinhado ao
+Terraform e como reproduzir o procedimento com segurança. A Fase 2 já foi
+executada: o serviço está provisionado, o banco `observatorio` existe e a tabela
+`lattes_analytics.perfil_pesquisadores_lattes_2023` contém 25.820 linhas e
+`SUM(quantidade) = 26.009`.
 
----
+## 1. Dados da instância existente
 
-## 1. Dados da Instância Existente
-- **Organização / Projeto Aiven:** `projeto-bigdata`
-- **Nome do Serviço:** `pg-4f83b4b`
-- **Versão:** PostgreSQL 18
-- **Usuário Administrador:** `avnadmin`
-- **Banco Padrão:** `defaultdb`
-- **Banco Analítico Alvo:** `observatorio`
+| Item | Valor |
+|---|---|
+| Organização / Projeto Aiven | `projeto-bigdata` |
+| Nome do serviço | `pg-4f83b4b` |
+| Versão | PostgreSQL 18 |
+| Região | `do-sfo` |
+| Plano | `free-1-1gb` |
+| Usuário administrador | `avnadmin` |
+| Banco padrão | `defaultdb` |
+| Banco analítico alvo | `observatorio` |
 
----
+> **Atenção:** o `terraform.tfstate` local não é versionado. Em um clone limpo,
+> use o bloco declarativo de `terraform/imports.tf` antes de qualquer `apply`.
 
-## 2. Verificação Obrigatória: Plano Gratuito vs Trial Pago
+## 2. Verificação do plano gratuito
 
-> [!WARNING]
-> Na Aiven, ao criar uma conta nova, é comum a concessão de um trial com créditos (ex.: US$ 300).
-> Se o serviço foi criado em um plano como `startup-4`, ele consumirá créditos e passará a gerar cobrança após o término do período de trial.
+No console da Aiven:
 
-**Como verificar na Console da Aiven:**
-1. Acesse o [Aiven Console](https://console.aiven.io/) e entre no projeto `projeto-bigdata`.
-2. Clique no serviço `pg-4f83b4b`.
-3. Na aba **Overview**:
-   - Verifique o campo **Plan**: se estiver escrito `Free` ou `free-1-1gb`, o serviço é permanentemente gratuito.
-   - Se estiver escrito `Startup-4` ou similar, o serviço está consumindo créditos de trial.
-   - Verifique também o campo **Cloud provider & region** (ex.: `google-europe-west1`, `aws-sa-east-1`, etc.).
+1. Abra o projeto `projeto-bigdata`.
+2. Abra o serviço `pg-4f83b4b`.
+3. Em **Overview**, confirme:
+   - **Plan:** `Free` ou `free-1-1gb`;
+   - **Cloud provider & region:** `do-sfo`;
+   - **PostgreSQL version:** 18.
 
----
+Se o serviço estiver em um plano de trial pago, não altere o plano sem
+autorização; o objetivo é apenas conferir o estado atual.
 
-## 3. Preparação das Variáveis de Infraestrutura
-
-1. Crie o arquivo `terraform/terraform.tfvars` (já protegido no `.gitignore`):
-   ```powershell
-   cd terraform
-   Copy-Item terraform.tfvars.example terraform.tfvars
-   ```
-
-2. Preencha `terraform.tfvars` com as informações exatas da console:
-   ```hcl
-   aiven_project = "projeto-bigdata"
-   nome_servico  = "pg-4f83b4b"
-   versao_pg     = "18"
-   nome_banco    = "observatorio"
-
-   # Preencha com o plano e a região exatos vistos na console do pg-4f83b4b:
-   plano         = "free-1-1gb"            # ou o plano exibido na console
-   cloud_name    = "google-europe-west1"   # ou a região exibida na console
-   ```
-
----
-
-## 4. Procedimento Oficial de Importação (Sem Recriar a Instância)
-
-Para que o Terraform passe a gerenciar o serviço existente **sem tentar criar outro ou deletar o atual**, utilize o comando oficial de importação do provedor Aiven:
+## 3. Preparação das variáveis
 
 ```powershell
-# 1. Definir o token pessoal via terminal (sem gravar em arquivo)
-$env:AIVEN_API_TOKEN = "seu_token_aiven_aqui"
-
-# 2. Entrar na pasta terraform
+$env:AIVEN_TOKEN = "<seu-token-aiven>"
 cd terraform
-
-# 3. Importar o serviço PostgreSQL existente para o estado
-terraform import aiven_pg.observatorio projeto-bigdata/pg-4f83b4b
-
-# 4. Inspecionar o plano de execução
-terraform plan
+Copy-Item terraform.tfvars.example terraform.tfvars
 ```
 
-### O que observar no `terraform plan`:
-- O Terraform deve indicar:
-  `Plan: 1 to add, 0 to change, 0 to destroy.` (adicionando apenas o banco `aiven_pg_database.observatorio` dentro da instância existente `pg-4f83b4b`).
-- **Nenhum recurso deve estar marcado para destruição (`forces replacement` ou `destroy`).**
+Preencha `terraform.tfvars` com os valores do ambiente:
 
----
+```hcl
+aiven_project = "projeto-bigdata"
+nome_servico  = "pg-4f83b4b"
+versao_pg     = "18"
+nome_banco    = "observatorio"
+plano         = "free-1-1gb"
+cloud_name    = "do-sfo"
+```
 
-## 5. Criação do Banco Lógico e Carga de Dados
+Não grave o token em `terraform.tfvars` nem em arquivo JSON.
 
-Após a importação e o planejamento validado:
-1. Aplique apenas a criação do banco lógico `observatorio`:
-   ```powershell
-   terraform apply -target=aiven_pg_database.observatorio
-   ```
+## 4. Importação declarativa (recomendada)
 
-2. Configure seu `.env` local na raiz do projeto com as credenciais obtidas no console da Aiven:
-   ```ini
-   DB_HOST=<Host exibido na console do pg-4f83b4b>
-   DB_PORT=<Porta exibida na console>
-   DB_NAME=observatorio
-   DB_USER=avnadmin
-   DB_PASSWORD=<Senha exibida na console>
-   DB_SSLMODE=require
-   ```
+O arquivo `terraform/imports.tf` declara:
 
-3. Dispare a carga automatizada da base do CNPq (25.820 linhas e 26.009 indivíduos ponderados):
-   ```powershell
-   python -m etl.carga_lattes
-   ```
+```hcl
+import {
+  to = aiven_pg.observatorio
+  id = "${var.aiven_project}/${var.nome_servico}"
+}
+```
+
+Procedimento:
+
+```powershell
+terraform init
+terraform fmt -check
+terraform validate
+terraform plan -out=plano.tfplan
+```
+
+O plano deve mostrar a importação do serviço existente, sem recriá-lo. Revise:
+
+- nenhum recurso marcado para `destroy` ou `forces replacement`;
+- o banco `aiven_pg_database.observatorio` presente no estado ou tratado de
+  forma consciente;
+- diferenças de plano apenas nas configurações realmente desejadas.
+
+Se o banco lógico também existir e não estiver no estado, importe-o antes de
+aplicar. O ID de importação do banco segue o padrão do provider
+(`projeto/serviço/banco`). Não use `terraform import` por CLI e o bloco
+declarativo ao mesmo tempo para o mesmo recurso.
+
+## 5. Aplicação controlada
+
+Somente após revisar o plano e com autorização explícita:
+
+```powershell
+terraform apply plano.tfplan
+```
+
+> **Nunca execute `destroy`.** O serviço tem proteção contra exclusão por padrão.
+
+## 6. Configuração do `.env` e carga
+
+Com o banco criado e as credenciais obtidas no console da Aiven (não em arquivo
+JSON), preencha o `.env` local:
+
+```ini
+DB_HOST=<host do serviço>
+DB_PORT=17025
+DB_NAME=observatorio
+DB_USER=avnadmin
+DB_PASSWORD=<senha local>
+DB_SSLMODE=require
+```
+
+Depois, na raiz do projeto:
+
+```powershell
+python -m etl.carga_lattes
+python -m etl.carga_lattes --verificar
+```
+
+Resultado esperado: `25.820` linhas, `26.009` indivíduos ponderados e status
+`integra_completa`. A carga é idempotente e não sobrescreve dados existentes
+quando a tabela já está íntegra.
+
+Consulte também [`docs/reproducao_fase2.md`](reproducao_fase2.md) e a evidência
+[`docs/evidencias/validacao_carga_2026-11-06.md`](evidencias/validacao_carga_2026-11-06.md).

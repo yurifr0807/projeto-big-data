@@ -1,93 +1,154 @@
-# Guia de Provisionamento e Infraestrutura como Código (Terraform & Aiven)
+# Provisionamento e Infraestrutura como Código (Terraform & Aiven)
 
-Este documento detalha o que é necessário para provisionar a instância gerenciada do **PostgreSQL na Aiven (Free Tier)** via Terraform.
+Este documento descreve o estado da infraestrutura da Fase 2 e o procedimento
+seguro para reproduzi-la ou reconciliá-la. O ambiente de referência já está
+provisionado na Aiven:
 
-> **Regra de Segurança e Governança:**
-> - Nunca execute `terraform apply` sem autorização prévia e deliberada da equipe.
-> - Nenhum token, senha ou segredo deve ser colocado nos arquivos `.tf` ou commitado no repositório.
+| Item | Valor |
+|---|---|
+| Projeto Aiven | `projeto-bigdata` |
+| Serviço PostgreSQL | `pg-4f83b4b` |
+| Região | `do-sfo` |
+| Versão do PostgreSQL | 18 |
+| Plano | `free-1-1gb` |
+| Banco analítico | `observatorio` |
+| Schema/tabela | `lattes_analytics.perfil_pesquisadores_lattes_2023` |
+
+> **Segurança:** nunca grave tokens, senhas ou o conteúdo de `terraform.tfstate`
+> em arquivos versionados. O token do provider é lido de `AIVEN_TOKEN` no
+> ambiente. `terraform.tfvars`, `*.tfstate` e planos são ignorados pelo Git.
 
 ---
 
 ## 1. Pré-requisitos
-1. **Conta na Aiven:** Ter uma conta ativa na plataforma [Aiven Console](https://console.aiven.io/).
-2. **Projeto Criado na Aiven:** Obter o nome do projeto (ex.: `projeto-yuri-bigdata`).
-3. **Token de API Pessoal (Aiven API Token):**
-   - Acesse *User profile* -> *Tokens* -> *Generate token*.
-   - Guarde o token em local seguro (ele só é exibido uma vez).
-4. **Terraform CLI Instalado:**
-   - Instale o binário do Terraform (versão >= 1.5.0).
-   - Verifique com: `terraform -version`.
+
+1. Conta ativa na [Aiven Console](https://console.aiven.io/).
+2. Projeto `projeto-bigdata` e serviço `pg-4f83b4b` existentes (ambiente atual).
+3. Terraform CLI `>= 1.5.0` instalado (`terraform -version`).
+4. Token pessoal da Aiven em local seguro (o console só o exibe uma vez).
 
 ---
 
-## 2. Configuração de Variáveis de Ambiente (Sem expor segredos)
+## 2. Configuração do token e das variáveis
 
-No Windows (PowerShell):
+No PowerShell, na raiz do projeto:
+
 ```powershell
-# 1. Definir o Token da Aiven como variável de ambiente (o provider lê automaticamente)
-$env:AIVEN_API_TOKEN = "seu-token-secreto-aiven"
+# Token do provider (não coloque em arquivo)
+$env:AIVEN_TOKEN = "<seu-token-aiven>"
 
-# 2. Entrar na pasta do Terraform
+# Entrar no diretório do Terraform
 cd terraform
 
-# 3. Criar arquivo de variáveis locais (já incluído no .gitignore)
+# Criar o arquivo local de variáveis (ignorado pelo Git)
 Copy-Item terraform.tfvars.example terraform.tfvars
 ```
 
-Edite o arquivo `terraform/terraform.tfvars` inserindo apenas o nome do seu projeto:
+O `terraform.tfvars.example` já reflete o ambiente atual. Para outro ambiente,
+edite `terraform.tfvars` com os valores exibidos no console da Aiven:
+
 ```hcl
-aiven_project = "nome-do-seu-projeto-aiven"
-nome_servico  = "pg-observatorio-equidade"
-plano         = "free-1-1gb"
-cloud_name    = "google-europe-west1"
-versao_pg     = "17"
+aiven_project = "projeto-bigdata"
+nome_servico  = "pg-4f83b4b"
+versao_pg     = "18"
 nome_banco    = "observatorio"
+plano         = "free-1-1gb"
+cloud_name    = "do-sfo"
 ```
+
+> O nome legado `AIVEN_API_TOKEN` não é usado pelo provider Terraform. Ele
+> permanece apenas como fallback no script auxiliar `etl/consultar_servico_aiven.py`.
 
 ---
 
-## 3. Comandos de Validação e Planejamento (Seguros)
+## 3. Importação declarativa do serviço existente
 
-Execute no diretório `terraform/`:
+O arquivo `terraform/imports.tf` contém um bloco `import` para o serviço já
+existente:
+
+```hcl
+import {
+  to = aiven_pg.observatorio
+  id = "${var.aiven_project}/${var.nome_servico}"
+}
+```
+
+Esse é o caminho recomendado para um clone limpo, pois o `terraform.tfstate`
+local não é versionado. O `terraform plan` lê o bloco e propõe a importação do
+serviço para o estado, sem recriá-lo.
 
 ```powershell
-# 1. Inicializar os providers (baixa o provider aiven/aiven ~> 4.65)
 terraform init
-
-# 2. Verificar formatação do código HCL
 terraform fmt -check
-
-# 3. Validar a sintaxe dos manifestos
 terraform validate
-
-# 4. Gerar o plano de execução para inspecionar os recursos antes da criação
 terraform plan -out=plano.tfplan
 ```
 
+No plano, verifique:
+
+- o serviço `aiven_pg.observatorio` aparece como importação, não como criação
+  de um novo serviço;
+- **nenhum recurso existente aparece para destruição ou `forces replacement`**;
+- o banco lógico `aiven_pg_database.observatorio` já está no estado ou será
+  importado/criado de forma consciente.
+
+Se o banco lógico também existir na Aiven e não estiver no estado, importe-o
+antes de aplicar qualquer alteração. O ID de importação do recurso de banco
+segue o formato indicado pela documentação do provider
+(`projeto/serviço/banco`). Não execute `terraform apply` sem revisar o plano e
+sem autorização explícita.
+
+> **Alternativa por CLI:** `terraform import aiven_pg.observatorio projeto-bigdata/pg-4f83b4b`.
+> Não use as duas abordagens ao mesmo tempo para o mesmo recurso.
+
 ---
 
-## 4. Provisionamento Efetivo (Quando Autorizado)
+## 4. Aplicação controlada
+
+Somente depois de revisar o plano e confirmar que não há destruição:
 
 ```powershell
-# Aplicar o plano inspecionado
 terraform apply plano.tfplan
-
-# Obter as credenciais geradas de forma segura:
-terraform output -json > credenciais_temporarias.json
 ```
 
-Transfira as credenciais para o seu `.env` local na raiz do projeto:
+O recurso possui `termination_protection = true` por padrão. Para encerrar o
+serviço seria necessário alterar essa variável conscientemente; isso está fora
+do escopo da Fase 2.
+
+---
+
+## 5. Credenciais e conexão com o banco
+
+Não grave outputs sensíveis (`pg_senha`, `pg_uri`) em arquivos JSON ou logs.
+Prefira consultar os valores individualmente no console da Aiven ou usar um
+gerenciador de segredos.
+
+Para preencher o `.env` local, use os campos exibidos no console da Aiven:
+
 ```ini
-DB_HOST=<pg_host do output>
-DB_PORT=<pg_porta do output>
+DB_HOST=<host do serviço>
+DB_PORT=17025
 DB_NAME=observatorio
-DB_USER=<pg_usuario do output>
-DB_PASSWORD=<pg_senha do output>
+DB_USER=avnadmin
+DB_PASSWORD=<senha local, nunca versionada>
 DB_SSLMODE=require
 ```
 
-Apague imediatamente o arquivo `credenciais_temporarias.json` após preencher o `.env`.
-Em seguida, execute a carga automatizada da base:
+O arquivo `.env` é ignorado pelo Git. Não há necessidade de criar arquivos
+temporários de credenciais.
+
+---
+
+## 6. Carga da base
+
+Com o `.env` preenchido e a base tratada disponível:
+
 ```powershell
+cd ..
 .\.venv\Scripts\python.exe -m etl.carga_lattes
+.\.venv\Scripts\python.exe -m etl.carga_lattes --verificar
 ```
+
+Resultado esperado: 25.820 linhas e `SUM(quantidade) = 26.009`. A carga é
+idempotente e não executa operações destrutivas. O procedimento completo está
+em [`docs/reproducao_fase2.md`](reproducao_fase2.md).

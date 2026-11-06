@@ -1,6 +1,13 @@
 # Checklist de Requisitos Acadêmicos — Fase 2
 
-Este documento compara os requisitos do professor (Guia de Orientação e Solicitação de Entrega Técnica da Fase 2) com o estado atual da implementação no repositório `projeto-big-data`.
+Este documento compara os requisitos do professor (Guia de Orientação e
+Solicitação de Entrega Técnica da Fase 2) com o estado implementado no
+repositório `projeto-big-data`.
+
+- **Data da validação:** 06/11/2026.
+- **Commit de referência:** `b28f88d`.
+- **Repositório:** <https://github.com/yurifr0807/projeto-big-data>
+- **Evidência principal:** [`docs/evidencias/validacao_carga_2026-11-06.md`](evidencias/validacao_carga_2026-11-06.md).
 
 ---
 
@@ -8,32 +15,56 @@ Este documento compara os requisitos do professor (Guia de Orientação e Solici
 
 | Requisito do Professor | Artefato no Repositório | Status Técnico | Observações / Justificativas |
 | :--- | :--- | :--- | :--- |
-| **1. Base de Dados Tratada** | `dados/tratado/painel_lattes_2023_tratado.csv` | **CONCLUÍDO E VALIDADO** | Base real do CNPq (25.820 linhas, 26.009 indivíduos). MergeCells resolvidos e sem nulos indevidos. |
-| **2. Origem e Versão Original** | `dados/bruto/manifesto_ingestao.json` | **CONCLUÍDO E VALIDADO** | SHA-256 oficial registrado, tamanho de 3,88 MB e procedência documentada. |
-| **3. Processo de Tratamento (ETL)** | `etl/leitor_lattes.py`, `etl/tratamento_lattes.py` | **CONCLUÍDO E VALIDADO** | Código limpo, modular, documentado e reproduzível com `python -m etl.tratamento_lattes`. |
-| **4. Justificativa das Decisões Técnicas** | `docs/linhagem/linhagem_lattes_2023.json` | **CONCLUÍDO E VALIDADO** | Linhagem formal registrando cada transformação com justificativa (LGPD, tipos, merges). |
-| **5. Modelagem do Banco de Dados** | `docs/modelagem_postgresql.md`, `etl/ddl_lattes_2023.sql` | **CONCLUÍDO E VALIDADO** | Esquema analítico contendo todas as 40 colunas reais, tipos compactos, chaves e índices B-Tree. |
-| **6. Tratamento da Coluna Quantidade** | `etl/consultas_validacao_lattes.sql`, `tests/test_modelagem_lattes.py` | **CONCLUÍDO E VALIDADO** | Frequência ponderada aplicada (`SUM(quantidade) = 26.009`), evitando a contagem simples de linhas. |
-| **7. Limitações de Recorte e Filtros** | `docs/limitacoes_lattes_2023.md` | **CONCLUÍDO E VALIDADO** | Recorte estático de 2023, ausência de PQ 1A documentada e veto ao cálculo de taxas de aprovação nesta base. |
-| **8. Infraestrutura como Código (Terraform)** | `terraform/*.tf`, `docs/guia_terraform_aiven.md` | **PREPARADO E VALIDADO LOCALMENTE** | Código HCL sintaticamente pronto para Aiven Provider ~> 4.65. Nenhum apply remoto executado. |
-| **9. Testes Automatizados** | `tests/` (91 testes locais + 1 de integração) | **CONCLUÍDO E VALIDADO** | Suíte com 92 testes (100% dos testes unitários e de integração local aprovados). |
-| **10. Carga Real no PostgreSQL na Nuvem (Aiven)** | `etl/carga_lattes.py` | **PENDENTE DE EXECUÇÃO REAL** | Script de carga transacional pronto; aguarda criação da conta/instância na Aiven pelo aluno. |
+| **1. Base de Dados Tratada** | `dados/tratado/painel_lattes_2023_tratado.csv` | **CONCLUÍDO E VALIDADO** | Base real do CNPq (25.820 linhas; 26.009 indivíduos ponderados). MergeCells resolvidos; 0 nulos estruturais, com missingness substantivo em categorias “Não informado”/“Não desejo declarar”. |
+| **2. Origem e Versão Original** | `dados/bruto/manifesto_ingestao.json` | **CONCLUÍDO E VALIDADO** | SHA-256 `939c5f4322e17a86970887f63def21de8b27033187f100ddeaefe9af4fe384e9`; 3.886.479 bytes; origem, data e tipo de ingestão registrados. |
+| **3. Processo de Tratamento (ETL)** | `etl/leitor_lattes.py`, `etl/tratamento_lattes.py` | **CONCLUÍDO E VALIDADO** | Código modular e reproduzível com `python -m etl.tratamento_lattes`. |
+| **4. Justificativa das Decisões Técnicas** | `docs/linhagem/linhagem_lattes_2023.json` | **CONCLUÍDO E VALIDADO** | Linhagem com origem, SHA-256, tamanho, decisões e versão tratada verificável. |
+| **5. Modelagem do Banco de Dados** | `docs/modelagem_postgresql.md`, `etl/ddl_lattes_2023.sql` | **CONCLUÍDO E VALIDADO** | Tabela analítica `lattes_analytics.perfil_pesquisadores_lattes_2023`: 40 colunas de dados + `id_registro`; índices B-Tree. |
+| **6. Tratamento da Coluna Quantidade** | `etl/consultas_validacao_lattes.sql`, `tests/test_modelagem_lattes.py` | **CONCLUÍDO E VALIDADO** | Frequência ponderada aplicada (`SUM(quantidade) = 26.009`), evitando `COUNT(*)` como contagem de pessoas. |
+| **7. Limitações de Recorte e Filtros** | `docs/limitacoes_lattes_2023.md` | **CONCLUÍDO E VALIDADO** | Recorte 2023, ausência de PQ 1A, veto a taxas de aprovação, agregação, missingness e não causalidade documentados. |
+| **8. Infraestrutura como Código (Terraform)** | `terraform/*.tf`, `docs/guia_terraform_aiven.md` | **APLICADO/IMPORTADO NA AIVEN** | Serviço `pg-4f83b4b` (PostgreSQL 18, `do-sfo`, `free-1-1gb`) e banco `observatorio`. Estado local não versionado; `imports.tf` documenta a importação declarativa. |
+| **9. Testes Automatizados** | `tests/` | **CONCLUÍDO E VALIDADO** | Resultado de referência: **`99 passed in 22.48s`** (06/11/2026, commit `b28f88d`). A suíte ganhou testes adicionais depois; a quantidade pode variar conforme dados locais e `DB_*`. |
+| **10. Carga Real no PostgreSQL na Nuvem (Aiven)** | `etl/carga_lattes.py` | **CONCLUÍDO E VALIDADO** | 25.820 linhas e 26.009 ponderados; status `integra_completa`; carga idempotente e transacional. |
+
+> O tamanho do banco (`pg_database_size`) **não foi medido** de forma
+> independente nesta etapa. Não há valor inventado neste documento.
 
 ---
 
-## 2. O que já está 100% Funcional e Verificável
+## 2. O que está funcional e verificável
+
 - Ingestão imutável e resolução de células mescladas da base do CNPq.
 - Tratamento e exportação da base tabular limpa para análise.
-- DDL completo e testado em banco local via SQLAlchemy.
-- Consultas analíticas SQL que comprovam o total ponderado de 26.009 mestres/doutores e as proporções por sexo e raça.
-- Testes cobrindo cada função do pipeline.
+- DDL aplicado na Aiven e testado localmente via SQLAlchemy/SQLite.
+- Consultas analíticas SQL que comprovam o total ponderado de 26.009 e as
+  proporções por sexo e raça.
+- Carga idempotente, com detecção de divergência e rollback transacional.
+- Testes cobrindo leitura, transformação, validação, linhagem, carga e modelagem.
+- Documentação de reprodução completa em
+  [`docs/reproducao_fase2.md`](reproducao_fase2.md).
 
 ---
 
-## 3. O que depende de Ação na Nuvem (Próximos Passos)
-1. **Provisionamento da Instância Aiven:**
-   - Criar o serviço PostgreSQL na Aiven (Free Tier) utilizando o token da conta via Terraform (`terraform plan` / `terraform apply`) ou pelo Console Web.
-2. **Configuração de Conexão no `.env`:**
-   - Preencher as credenciais geradas (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`).
-3. **Disparo da Carga:**
-   - Executar `python -m etl.carga_lattes` para efetivar a gravação remota no PostgreSQL da Aiven.
+## 3. Evidências reais
+
+| Evidência | Resultado |
+|---|---|
+| ETL | 25.820 linhas; 26.009 ponderados; 40 colunas de dados |
+| Carga PostgreSQL | 25.820 linhas; 26.009 ponderados; `integra_completa` |
+| Testes | `99 passed in 22.48s` (commit `b28f88d`) |
+| Terraform | Serviço e banco aplicados/importados; sem `destroy` |
+| Tamanho do banco | **Não medido** |
+
+---
+
+## 4. Próximas fases (fora do escopo desta entrega)
+
+1. **Indicadores de fomento:** o Painel Lattes não contém propostas submetidas
+   versus aprovadas. Taxas de aprovação/contemplação dependem do Painel PQ ou
+   de outra fonte oficial.
+2. **Dashboard:** Streamlit/Plotly com filtros e supressão de células `< 5`.
+3. **Publicação online:** implantação e política de acesso.
+4. **Licença:** confirmar a licença dos dados do CNPq antes de redistribuir
+   arquivos brutos ou tratados.
+5. **Medição de volume:** registrar `pg_database_size` em etapa futura, sem
+   substituir a estimativa por valor inventado.
