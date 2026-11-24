@@ -93,8 +93,21 @@ except ConfigError as exc:
     st.code("streamlit run dashboard/app.py", language="powershell")
     st.info("Configure .env local ou os Secrets do Streamlit. Nunca envie sua senha ao GitHub ou ao chat.")
     st.stop()
-except Exception:
-    st.error("Não foi possível estabelecer conexão com o banco configurado. Confira credenciais, rede e TLS.")
+except Exception as exc:
+    original = getattr(exc, "orig", None)
+    sqlstate = getattr(original, "sqlstate", None)
+
+    print(
+        f"DB_DIAGNOSTICO_CONEXAO: "
+        f"tipo={type(exc).__name__}; "
+        f"sqlstate={sqlstate or 'indisponivel'}",
+        flush=True
+    )
+
+    st.error(
+        "Falha ao conectar com o PostgreSQL. "
+        "Consulte os logs para identificar o erro."
+    )
     st.stop()
 
 st.sidebar.header("Filtros de análise")
