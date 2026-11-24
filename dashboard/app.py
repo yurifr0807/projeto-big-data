@@ -127,8 +127,20 @@ st.sidebar.warning("Prévia técnica. Antes da publicação aberta, faça avalia
 
 try:
     result = cached_results(engine, tuple(sorted(selected.items())))
-except Exception:
-    st.error("Não foi possível consultar os agregados do PostgreSQL. Verifique o usuário somente leitura e a tabela Lattes.")
+except Exception as exc:
+    original = getattr(exc, "orig", None)
+    sqlstate = getattr(original, "sqlstate", None)
+
+    print(
+        f"DB_DIAGNOSTICO: tipo={type(exc).__name__}; "
+        f"sqlstate={sqlstate or 'indisponivel'}",
+        flush=True
+    )
+
+    st.error(
+        "Não foi possível estabelecer conexão com o banco. "
+        "Consulte os logs para identificar a categoria do erro."
+    )
     st.stop()
 
 metrics = kpis(result["sexo"], result["raca"], result["cruzamento"])
