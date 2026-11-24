@@ -103,3 +103,7 @@ override.tf.json
 *~
 .DS_Store
 Thumbs.db
+
+# Streamlit: segredos locais da aplicação (dashboard)
+.streamlit/secrets.toml
+**/.streamlit/secrets.toml

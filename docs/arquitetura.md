@@ -64,3 +64,24 @@ flowchart LR
 O roteiro completo, em PowerShell, está em
 [`docs/reproducao_fase2.md`](reproducao_fase2.md). Ele cobre download,
 manifesto, ETL, `.env`, Terraform, carga, validação SQL e testes.
+
+## 6. Complemento para a etapa final: dashboard (implementação local)
+
+```mermaid
+flowchart LR
+    A["CNPq Painel Lattes 2023"] --> B["ETL Python (Fase 2)"]
+    B --> C[("Aiven PostgreSQL: observatorio")]
+    D["Terraform já aplicado/importado"] -."gerencia infra".-> C
+    C -->|"SELECT / GROUP BY; TLS; credencial somente leitura"| E["dashboard/db.py"]
+    E --> F["dashboard/analytics.py: KPIs / supressão"]
+    F --> G["dashboard/app.py: Streamlit / Plotly"]
+    G --> H["Visualização interativa com filtros"]
+```
+
+A camada de visualização está implementada como código, mas a **conexão real e
+implantação pública ainda exigem configuração de Secrets, validação SQL e
+revisão de privacidade**. Não declarar a interface publicada sem URL verificada.
+
+O Streamlit usa consultas agregadas diretamente no banco, não o CSV de origem,
+e não altera a infraestrutura Terraform existente. Ver
+[`dashboard_implantacao.md`](dashboard_implantacao.md) para o procedimento.

@@ -5,7 +5,7 @@ Solução técnica de engenharia, governança e análise de Big Data com foco em
 - **Tema acadêmico:** Auditoria de Viés Étnico-Gênero no Fomento à Pesquisa Científica.
 - **Aluno:** Yuri Figueiredo Ribeiro.
 - **Repositório:** <https://github.com/yurifr0807/projeto-big-data>
-- **Commit de referência da validação:** `b28f88d`.
+- **Commit de referência da validação:** `b28f88d` (validação histórica da Fase 2).
 - **Data da validação:** 06/11/2026.
 - **Alinhamento:** ODS 5 (Igualdade de Gênero) e ODS 18 (Igualdade Étnico-Racial — iniciativa da agenda nacional brasileira, complementar às 17 ODS da ONU).
 
@@ -36,12 +36,41 @@ Reprodução completa: [`docs/reproducao_fase2.md`](docs/reproducao_fase2.md).
 
 ---
 
+## 📈 Etapa final — Dashboard analítico (código implementado)
+
+**Status:** código Streamlit/Plotly e testes offline implementados; **a aplicação ainda não foi validada com uma conexão real à Aiven, nem publicada**. Não há URL pública nem print real neste momento. A base PostgreSQL permanece a carga validada da Fase 2.
+
+- **Arquivo inicial:** [`dashboard/app.py`](dashboard/app.py)
+- **Como rodar localmente:** após configurar `.env` na sua máquina e instalar as dependências, execute **`streamlit run dashboard/app.py`** na raiz do repositório.
+- **Implantação / Secrets / usuário somente leitura:** [`docs/dashboard_implantacao.md`](docs/dashboard_implantacao.md).
+- **Pitch técnico de 10 minutos:** [`docs/pitch_etapa_final.md`](docs/pitch_etapa_final.md).
+- **Diagramas:** [`docs/arquitetura.md`](docs/arquitetura.md).
+
+### Os quatro indicadores do painel
+
+| Indicador | Como é calculado | Interpretação |
+|---|---|---|
+| Participação feminina | Soma ponderada `sexo=Feminino` ÷ pessoas com sexo conhecido | Retrato de composição de gênero |
+| Participação preta/parda | Soma ponderada `cor_ou_raca` em Preta/Parda ÷ pessoas com raça/cor conhecida | Representatividade no recorte Lattes |
+| Mulheres pretas/pardas | Soma ponderada da interseção sexo/raça ÷ pessoas com ambos conhecidos | Perfil interseccional de pesquisadores |
+| Presença de bolsa PQ | Soma ponderada `bolsista_pq=Sim` ÷ pessoas no recorte | Registro de presença/histórico PQ, **não taxa de aprovação** |
+
+**Filtros**: região, UF, grande área de atuação, nível de formação, sexo e raça/cor, com limite conservador de até dois filtros simultâneos. Os dados são consultados diretamente do banco via SQL parametrizado, com cache de 60 segundos; **não** são extraídos de CSV no Streamlit.
+
+**Privacidade:** gráficos com grupos positivos menores que 5 são suprimidos. Essa regra **não é garantia suficiente de anonimato** contra diferenças entre consultas; o acesso público exige revisão adicional antes do deploy. O painel não disponibiliza linhas individuais nem exportação da base.
+
+**Análise crítica (preliminar, a ser preenchida com valores validados):** o estudo permite comparar a composição por gênero, raça/cor e sua interseção, identificar ausência ou recusa de resposta e discutir presença de PQ em cada grupo. A extração é de 2023 e exclui PQ 1A; também não contém propostas submetidas/rejeitadas, portanto não permite estimar taxas de aprovação ou atribuir diferenças à discriminação. **Não são apresentados percentuais numéricos sem verificação na Aiven.**
+
+**Evidências finais pendentes:** URL do dashboard implantado, captura de tela real da interface em funcionamento, métricas comparadas com SQL do banco e análise quantitativa interpretada. Consulte o checklist em `docs/dashboard_implantacao.md`.
+
+---
+
 ## 🛠️ Tecnologias Utilizadas
 
 - **Linguagem principal:** Python 3.14+ (Pandas, SQLAlchemy, psycopg 3, Openpyxl).
 - **Infraestrutura como Código:** Terraform com provider oficial `aiven/aiven` (`~> 4.65`).
 - **Banco relacional:** PostgreSQL 18 hospedado na Aiven (Free Tier, 1 GB).
-- **Visualização analítica:** Streamlit e Plotly (planejados para a fase de dashboard).
+- **Visualização analítica:** Streamlit + Plotly (implementação no repositório; publicação e conexão remota pendentes de validação).
 - **Qualidade e testes:** pytest.
 
 ---
@@ -100,6 +129,13 @@ projeto-big-data/
 │   ├── reproducao_fase2.md
 │   ├── linhagem/linhagem_lattes_2023.json
 │   └── relatorio_qualidade_lattes_2023.json
+├── dashboard/               # Interface Streamlit e lógica de indicadores
+│   ├── app.py               # Aplicação interativa conectada ao PostgreSQL
+│   ├── db.py                # Queries agregadas, filtragem parametrizada e TLS
+│   └── analytics.py         # Quatro indicadores ponderados e proteção k=5
+├── .streamlit/              # Tema e modelo de Secrets (sem senha real)
+│   ├── config.toml
+│   └── secrets.toml.example
 ├── requirements.txt
 ├── .gitignore
 ├── .env.example

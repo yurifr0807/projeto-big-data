@@ -1,6 +1,7 @@
 """Testes de ingestão: sem rede, sem serviços externos (sessão HTTP simulada, fixtures pequenas em tmp_path)."""
 
 import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -53,7 +54,9 @@ def test_download_grava_arquivo_e_manifesto(tmp_path):
     assert manifesto["arquivo.csv"]["origem"] == URL
     assert manifesto["arquivo.csv"]["sha256"] == res.sha256
     # TLS sempre verificado e timeout presente
-    assert sessao.kwargs["verify"] is True
+    assert sessao.kwargs["verify"] is True or (
+        isinstance(sessao.kwargs["verify"], str) and Path(sessao.kwargs["verify"]).is_file()
+    )
     assert sessao.kwargs["timeout"] == ingestao.TIMEOUT_PADRAO
 
 
